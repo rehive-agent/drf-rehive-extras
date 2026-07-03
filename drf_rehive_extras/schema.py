@@ -377,6 +377,32 @@ class BaseAutoSchema(AutoSchema):
             'description': description
         }
 
+    def _map_serializer(self, serializer, direction, bypass_extensions=False):
+        """
+        Override to strip docstring-derived component descriptions.
+
+        Symmetry with get_description(): serializer/model docstrings are
+        internal developer notes, never public API documentation. Upstream
+        drf-spectacular sets the component `description` from
+        get_doc(serializer.__class__), which walks the MRO and publishes
+        inherited mixin docstrings (e.g. DynamicFieldsModelSerializer, internal
+        permission mixins) as component descriptions.
+
+        Public component copy comes from the additional-docs YAML (operations)
+        and explicit field `help_text`. Field-level help_text lands on the
+        `properties` of the schema, not on the component object itself, so
+        dropping the top-level `description` leaves field docs untouched.
+        """
+
+        schema = super()._map_serializer(
+            serializer, direction, bypass_extensions=bypass_extensions
+        )
+
+        if isinstance(schema, dict):
+            schema.pop('description', None)
+
+        return schema
+
     def get_operation_id(self):
         """
         Override the operation ID with a custom one if needed (retrieved from
